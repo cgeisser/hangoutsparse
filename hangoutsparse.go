@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+  "strconv"
+  "time"
+	"sort"
 )
 
 type ChatLog struct {
-	Continuation_end_timestamp string
 	Conversation_state         []ConversationState
 }
 
@@ -22,6 +24,7 @@ type ConversationStateInner struct {
 
 func (csi ConversationStateInner) String() string {
 	output := ""
+	sort.Sort(EventByTime(csi.Event))
 	for _, e := range csi.Event {
 		output += csi.EventString(&e) + "\n"
 	}
@@ -29,7 +32,10 @@ func (csi ConversationStateInner) String() string {
 }
 
 func (csi *ConversationStateInner) EventString(e *Event) string {
-	return fmt.Sprintf("[%v] %v",
+  timestamp, _ := strconv.ParseInt(e.Timestamp, 10, 64)
+  time := time.Unix(timestamp / 1000000, timestamp % 1000000)
+	return fmt.Sprintf("%v [%v] %v",
+    time.Format("2006-01-02 15:04:05"),
 		csi.Conversation.GetNameForId(e.Sender_id.Gaia_id),
 		e.Chat_message)
 }
@@ -66,23 +72,44 @@ type Event struct {
 	Chat_message ChatMessage
 }
 
+type EventByTime []Event
+
+func (a EventByTime) Len() int {return len(a)}
+func (a EventByTime) Swap(i, j int) {a[i], a[j] = a[j], a[i]}
+func (a EventByTime) Less(i, j int) bool { return a[i].Timestamp < a[j].Timestamp}
+
 type ChatMessage struct {
 	Message_content MessageContent
+}
+
+func (cm ChatMessage) String() string {
+  return cm.Message_content.String()
 }
 
 type MessageContent struct {
 	Segment []ChatSegment
 }
 
+func (mc MessageContent) String() string {
+  output:=""
+  for _, segment := range mc.Segment {
+    output += segment.String()
+  }
+  return output
+}
+
 type ChatSegment struct {
 	Text string
+}
+
+func (cs ChatSegment) String() string {
+  return cs.Text
 }
 
 func main() {
 	dec := json.NewDecoder(os.Stdin)
 	var chatlog ChatLog
 
-	err := dec.Decode(&chatlog)
-	fmt.Println(err)
+	dec.Decode(&chatlog)
 	fmt.Printf("%v\n", chatlog)
 }
