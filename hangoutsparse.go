@@ -32,10 +32,8 @@ func (csi ConversationStateInner) String() string {
 }
 
 func (csi *ConversationStateInner) EventString(e *Event) string {
-	timestamp, _ := strconv.ParseInt(e.Timestamp, 10, 64)
-	time := time.Unix(timestamp/1000000, timestamp%1000000)
 	return fmt.Sprintf("%v [%v] %v",
-		time.Format("2006-01-02 15:04:05"),
+		e.Time().Format("2006-01-02 15:04:05"),
 		csi.Conversation.GetNameForId(e.Sender_id.Gaia_id),
 		e.Chat_message)
 }
@@ -72,11 +70,18 @@ type Event struct {
 	Chat_message ChatMessage
 }
 
+func (e *Event) Time() time.Time {
+	timestamp, _ := strconv.ParseInt(e.Timestamp, 10, 64)
+	return time.Unix(timestamp/1000000, timestamp%1000000)
+}
+
 type EventByTime []Event
 
 func (a EventByTime) Len() int           { return len(a) }
 func (a EventByTime) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a EventByTime) Less(i, j int) bool { return a[i].Timestamp < a[j].Timestamp }
+func (a EventByTime) Less(i, j int) bool {
+	return a[i].Time().Before(a[j].Time())
+}
 
 type ChatMessage struct {
 	Message_content MessageContent
